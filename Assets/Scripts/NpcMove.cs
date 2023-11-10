@@ -25,6 +25,10 @@ public class NpcMove : MonoBehaviour
     private Vector3 linkStartPos;
     private Vector3 linkEndPos;
     private float jumpSpeed;
+    private float maxHeightJump;
+    [SerializeField] private float jumpHeight = 5.0f;
+    private float ratioJump;
+    [SerializeField] private float fTimeToConcentrationRotaion = 0.1f;
 
 #if UNITY_EDITOR //OnDrawGizmos를 쓰려면 꼭 써야함 안그러면 빌드 안됨
     private void OnDrawGizmos()
@@ -67,8 +71,37 @@ public class NpcMove : MonoBehaviour
 
                 agent.isStopped = true; // isStopped를 true로 하면 agent가 켜져있지만 동작 X
                 jumpSpeed = Vector3.Distance(linkStartPos, linkEndPos) / agent.speed;
-            }                    
+                maxHeightJump = (linkEndPos - linkStartPos).y + jumpHeight;
+            }
+
+            rotating(new Vector2(linkEndPos.x , linkEndPos.z));
+
+            ratioJump += (Time.deltaTime / jumpSpeed);
+            
+            Vector3 movePos = Vector3.Lerp(linkStartPos, linkEndPos, ratioJump); // Lerp는 a 에서 b로 시간만큼 이동시켜주는 함수
+            movePos.y = linkStartPos.y + (maxHeightJump * ratioJump) + (-jumpHeight * Mathf.Pow(ratioJump, 2)); // pow는 제곱근
+            transform.position = movePos;
+
+            if (ratioJump >= 1.0f)
+            {
+                ratioJump = 0.0f;
+                agent.CompleteOffMeshLink();
+                agent.isStopped = false;
+                setOffMesh = false;
+            }
         }
+    }
+
+    private void rotating(Vector2 _hit, bool _smooth = true) // hit  x z, smoot는 부드럽게 쳐다볼지 아닐지 // object가 회전을 시키는 코드임
+    {
+        float _targetRotation = Mathf.Atan2(_hit.x - transform.position.x, _hit.y - transform.position.z) * Mathf.Rad2Deg;
+        if (_smooth)
+        {
+            float RotationSpeed = 0.0f;
+            _targetRotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _targetRotation, ref RotationSpeed, fTimeToConcentrationRotaion);
+            //주석 생활화
+        }
+        transform.rotation = Quaternion.Euler(0.0f, _targetRotation, 0.0f);
     }
 
     /// <summary>
